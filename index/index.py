@@ -1,6 +1,8 @@
+from datetime import datetime
 import json
-import time
 import os
+import time
+
 import boto3
 
 CLUSTER = os.environ['CLUSTER_NAME']
@@ -12,6 +14,10 @@ ASG = boto3.client('autoscaling', region_name=REGION)
 SNS = boto3.client('sns', region_name=REGION)
 
 
+def _get_datetime_str():
+    return datetime.now().strftime('%Y-%m-%d %H:%M:%SZ')
+
+
 def find_ecs_instance_info(instance_id):
     paginator = ECS.get_paginator('list_container_instances')
     for list_resp in paginator.paginate(cluster=CLUSTER):
@@ -21,8 +27,8 @@ def find_ecs_instance_info(instance_id):
         for container_instance in desc_resp['containerInstances']:
             if container_instance['ec2InstanceId'] != instance_id:
                 continue
-            print('Found instance: id=%s, arn=%s, status=%s, runningTasksCount=%s' %
-                  (instance_id, container_instance['containerInstanceArn'],
+            print('[%s] Found instance: id=%s, arn=%s, status=%s, runningTasksCount=%s' %
+                  (_get_datetime_str(), instance_id, container_instance['containerInstanceArn'],
                    container_instance['status'], container_instance['runningTasksCount']))
             return (container_instance['containerInstanceArn'],
                     container_instance['status'], container_instance['runningTasksCount'])
@@ -32,12 +38,12 @@ def find_ecs_instance_info(instance_id):
 def instance_has_running_tasks(instance_id):
     (instance_arn, container_status, running_tasks) = find_ecs_instance_info(instance_id)
     if instance_arn is None:
-        print('Could not find instance ID %s. Letting autoscaling kill the instance.' %
-              (instance_id))
+        print('[%s] Could not find instance ID %s. Letting autoscaling kill the instance.' %
+              (_get_datetime_str(), instance_id))
         return False
     if container_status != 'DRAINING':
-        print('Setting container instance %s (%s) to DRAINING' %
-              (instance_id, instance_arn))
+        print('[%s] Setting container instance %s (%s) to DRAINING' %
+              (_get_datetime_str(), instance_id, instance_arn))
         ECS.update_container_instances_state(cluster=CLUSTER,
                                              containerInstances=[instance_arn],
                                              status='DRAINING')
@@ -48,19 +54,20 @@ def lambda_handler(event, context):
     msg = json.loads(event['Records'][0]['Sns']['Message'])
     if 'LifecycleTransition' not in msg.keys() or \
             msg['LifecycleTransition'].find('autoscaling:EC2_INSTANCE_TERMINATING') == -1:
-        print('Exiting since the lifecycle transition is not EC2_INSTANCE_TERMINATING.')
+        print('[%s] Exiting since the lifecycle transition is not EC2_INSTANCE_TERMINATING.' %
+              (_get_datetime_str()))
         return
     if instance_has_running_tasks(msg['EC2InstanceId']):
-        print('Tasks are still running on instance %s; posting msg to SNS topic %s' %
-              (msg['EC2InstanceId'], event['Records'][0]['Sns']['TopicArn']))
+        print('[%s] Tasks are still running on instance %s; posting msg to SNS topic %s' %
+              (_get_datetime_str(), msg['EC2InstanceId'], event['Records'][0]['Sns']['TopicArn']))
         time.sleep(int(SLEEP_TIME))
         sns_resp = SNS.publish(TopicArn=event['Records'][0]['Sns']['TopicArn'],
                                Message=json.dumps(msg),
                                Subject='Publishing SNS msg to invoke Lambda again.')
-        print('Posted msg %s to SNS topic.' % (sns_resp['MessageId']))
+        print('[%s] Posted msg %s to SNS topic.' % (_get_datetime_str(), sns_resp['MessageId']))
     else:
-        print('No tasks are running on instance %s; setting lifecycle to complete' %
-              (msg['EC2InstanceId']))
+        print('[%s] No tasks are running on instance %s; setting lifecycle to complete' %
+              (_get_datetime_str(), msg['EC2InstanceId']))
         ASG.complete_lifecycle_action(LifecycleHookName=msg['LifecycleHookName'],
                                       AutoScalingGroupName=msg['AutoScalingGroupName'],
                                       LifecycleActionResult='CONTINUE',
