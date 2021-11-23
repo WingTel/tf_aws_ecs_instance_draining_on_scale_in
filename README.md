@@ -14,6 +14,7 @@ Module Input Variables
 - `region` - The AWS Region where the resources reside.
 - `autoscaling_group_name` - The Name of the AutoScaling Group used by the ECS Cluster.
 - `cluster_name` - The Name of the ECS Cluster to target
+- `service_name` - The Name of the ECS Service to target
 - `function_sleep_time` - Number of seconds the Lambda function should sleep before checking ECS Instance Task Count again. Defaults to 15 seconds.
 - `hook_heartbeat_timeout` - Amount of time, in seconds, the lifecycle hook should wait before giving up and moving onto the default result. Defaults to 900 (15 mins).
 - `hook_default_result` - Can be one of either ABANDON or CONTINUE. ABANDON stops any remaining actions, such as other lifecycle hooks, while CONTINUE allows any other lifecycle hooks to complete. Default is ABANDON
