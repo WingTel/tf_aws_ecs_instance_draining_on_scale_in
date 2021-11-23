@@ -2,6 +2,8 @@ variable "region" {}
 
 variable "cluster_name" {}
 
+variable "service_name" {}
+
 variable "autoscaling_group_name" {}
 
 variable "function_sleep_time" {

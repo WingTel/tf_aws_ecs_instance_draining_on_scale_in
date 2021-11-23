@@ -1,5 +1,5 @@
 resource "aws_iam_role" "sns" {
-  name = "${var.autoscaling_group_name}-notifies-sns"
+  name = "${var.service_name}-notifies-sns"
 
   assume_role_policy = <<EOF
 {
@@ -112,7 +112,7 @@ data "archive_file" "index" {
 resource "aws_lambda_function" "lambda" {
   runtime       = "python3.6"
   filename      = "${path.module}/files/index.zip"
-  function_name = var.autoscaling_group_name
+  function_name = var.service_name
   role          = aws_iam_role.lambda.arn
   handler       = "index.lambda_handler"
   timeout       = var.function_sleep_time * 2
@@ -143,7 +143,7 @@ resource "aws_lambda_permission" "sns" {
 }
 
 resource "aws_sns_topic" "asg_sns" {
-  name = "${var.autoscaling_group_name}-sns-topic"
+  name = "${var.service_name}-sns-topic"
 }
 
 resource "aws_sns_topic_subscription" "asg_sns" {
