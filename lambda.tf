@@ -1,5 +1,5 @@
 resource "aws_lambda_function" "lambda" {
-  runtime       = "python3.8"
+  runtime       = "python3.10"
   filename      = "${path.module}/files/index.zip"
   function_name = var.service_name
   role          = aws_iam_role.lambda.arn
